@@ -30,11 +30,9 @@ seed		    = int(config['MODEL']['Seed'])
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
-# cudnn.benchmark = True
-# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-#
-# torch.manual_seed(seed)
+cudnn.benchmark = True
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+torch.manual_seed(seed)
 
 if model_type == 'SRCNN':
     model = SRCNN().to(device)
@@ -109,4 +107,3 @@ for epoch in range(epochs):
 
 print("Best epoch: {:.2f} with avg: {:.2f}".format(best_epoch, best_sum / best_count))
 torch.save(best_weight, os.path.join(output_dir, "model.pth"))
-
