@@ -8,12 +8,10 @@ import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 from torch import nn
 
-from models import SRCNN, FSRCNN
+from models import SRCNN, FSRCNN_S1, FSRCNN_S2, FSRCNN
 from dataset import TrainDataset, EvalDataset
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
-
-
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -30,7 +28,7 @@ workers		    = int(config['MODEL']['Workers'])
 seed		    = int(config['MODEL']['Seed'])
 
 #Use tensorboard for visulization
-tb = SummaryWriter()
+tb = SummaryWriter("runs/" + model_type + "_x" + str(scale))
 
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
@@ -48,6 +46,25 @@ if model_type == 'SRCNN':
         {'params': model.conv2.parameters()},
         {'params': model.conv3.parameters(), 'lr': lr * 0.1}
     ], lr = lr)
+
+elif model_type == 'FSRCNN_S1':
+    model = FSRCNN_S1(scale_factor=scale).to(device)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam([
+        {'params': model.conv1.parameters()},
+        {'params': model.conv2.parameters()},
+        {'params': model.last_part.parameters(), 'lr': lr * 0.1}
+    ], lr=lr)
+
+elif model_type == 'FSRCNN_S2':
+    model = FSRCNN_S2(scale_factor=scale).to(device)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam([
+        {'params': model.conv1.parameters()},
+        {'params': model.mid_part.parameters()},
+        {'params': model.last_part.parameters(), 'lr': lr * 0.1}
+    ], lr=lr)
+
 elif model_type == 'FSRCNN':
     model = FSRCNN(scale_factor=scale).to(device)
     criterion = nn.MSELoss()
@@ -57,7 +74,6 @@ elif model_type == 'FSRCNN':
         {'params': model.last_part.parameters(), 'lr': lr * 0.1}
     ], lr=lr)
 
-    
 
 #Data preparation
 train_dataset = TrainDataset(train_file)
@@ -81,29 +97,29 @@ for epoch in range(epochs):
     with tqdm(total = (len(train_dataset) - len(train_dataset) % batch_size)) as progress:
         progress.set_description('epoch: {}/{}'.format(epoch, epochs - 1))
 
-    for train in train_dataloader:
-        data, labels = train
-        data = data.to(device)
-        labels = labels.to(device)
-        preds = model(data)
-        # print("data.shape:", data.shape)
-        # print("preds.shape:", preds.shape, "labels.shape:", labels.shape)
-        # input()
-        loss = criterion(preds, labels)
-        # print("loss:",loss.shape)
-        # input()
+        for train in train_dataloader:
+            data, labels = train
+            data = data.to(device)
+            labels = labels.to(device)
+            preds = model(data)
+            # print("data.shape:", data.shape)
+            # print("preds.shape:", preds.shape, "labels.shape:", labels.shape)
+            # input()
+            loss = criterion(preds, labels)
+            # print("loss:",loss.shape)
+            # input()
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        sum += loss.item() * len(data)
-        count += len(data)
+            sum += loss.item() * len(data)
+            count += len(data)
 
-        avg = sum / count
-        # tb.add_scalar('Loss/train', avg, sample_idx)
-        progress.set_postfix(loss = '{:.6f}'.format(avg))
-        progress.update(len(data))
+            avg = sum / count
+            # tb.add_scalar('Loss/train', avg, sample_idx)
+            progress.set_postfix(loss = '{:.6f}'.format(avg))
+            progress.update(len(data))
 
         # sample_idx += 1
 
@@ -125,7 +141,7 @@ for epoch in range(epochs):
         eval_sum += (10. * torch.log10(1. / torch.mean((preds - labels) ** 2))) * len(data)
         eval_count += len(data)
 
-    tb.add_scalar('Loss/eval', (eval_sum / eval_count), epoch)
+    tb.add_scalar('psnr/eval', (eval_sum / eval_count), epoch)
     print('eval error: {:.2f}'.format(eval_sum / eval_count))
 
     if best_count == 0 or eval_sum / eval_count > best_sum / best_count:
@@ -135,4 +151,4 @@ for epoch in range(epochs):
         best_weight = copy.deepcopy(model.state_dict())
 
 print("Best epoch: {:.2f} with avg: {:.2f}".format(best_epoch, best_sum / best_count))
-torch.save(best_weight, os.path.join(output_dir, "model.pth"))
+torch.save(best_weight, os.path.join(output_dir, model_type + "_model" + "_x" + scale + ".pth"))
