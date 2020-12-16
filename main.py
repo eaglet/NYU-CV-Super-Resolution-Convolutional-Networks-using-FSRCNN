@@ -1,4 +1,5 @@
 import configparser
+import argparse
 import os
 import copy
 
@@ -13,8 +14,12 @@ from dataset import TrainDataset, EvalDataset
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--config-file', type=str, required=True)
+args = parser.parse_args()
+
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(args.config_file)
 
 train_file 		= config['MAIN']['TrainFile']
 eval_file 		= config['MAIN']['EvalFile']
@@ -151,4 +156,4 @@ for epoch in range(epochs):
         best_weight = copy.deepcopy(model.state_dict())
 
 print("Best epoch: {:.2f} with avg: {:.2f}".format(best_epoch, best_sum / best_count))
-torch.save(best_weight, os.path.join(output_dir, model_type + "_model" + "_x" + scale + ".pth"))
+torch.save(best_weight, os.path.join(output_dir, model_type + "_model" + "_x" + str(scale) + ".pth"))
