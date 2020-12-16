@@ -52,6 +52,22 @@ if model_type == 'SRCNN':
         {'params': model.conv3.parameters(), 'lr': lr * 0.1}
     ], lr = lr)
 
+elif model_type == 'SRCNN_WO_1':
+    model = SRCNN().to(device)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam([
+        {'params': model.conv2.parameters()},
+        {'params': model.conv3.parameters(), 'lr': lr * 0.1}
+    ], lr = lr)
+
+elif model_type == 'SRCNN_WO_2':
+    model = SRCNN().to(device)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam([
+        {'params': model.conv1.parameters()},
+        {'params': model.conv3.parameters(), 'lr': lr * 0.1}
+    ], lr = lr)
+
 elif model_type == 'FSRCNN_S1':
     model = FSRCNN_S1(scale_factor=scale).to(device)
     criterion = nn.MSELoss()

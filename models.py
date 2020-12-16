@@ -16,6 +16,30 @@ class SRCNN(nn.Module):
         x = self.conv3(x)
         return x
 
+class SRCNN_WO_1(nn.Module):
+    def __init__(self, channel_number=1):
+        super(SRCNN_WO_1, self).__init__()
+        self.conv2 = nn.Conv2d(channel_number, 32, kernel_size = 5, padding = 5 // 2)
+        self.conv3 = nn.Conv2d(32, channel_number, kernel_size = 5, padding =5 // 2)
+        self.relu = nn.ReLU(inplace = True)
+
+    def forward(self, x):
+        x = self.relu(self.conv2(x))
+        x = self.conv3(x)
+        return x
+
+class SRCNN_WO_2(nn.Module):
+    def __init__(self, channel_number=1):
+        super(SRCNN_WO_2, self).__init__()
+        self.conv1 = nn.Conv2d(channel_number, 64, kernel_size = 9, padding =9 // 2)
+        self.conv3 = nn.Conv2d(64, channel_number, kernel_size = 5, padding =5 // 2)
+        self.relu = nn.ReLU(inplace = True)
+
+    def forward(self, x):
+        x = self.relu(self.conv1(x))
+        x = self.conv3(x)
+        return x
+
 import math
 from torch import nn
 
