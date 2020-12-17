@@ -108,7 +108,6 @@ best_sum = 0
 best_epoch = -1
 best_weight = 0
 
-# sample_idx = 0
 #Train
 for epoch in range(epochs):
     model.train()
@@ -123,12 +122,7 @@ for epoch in range(epochs):
             data = data.to(device)
             labels = labels.to(device)
             preds = model(data)
-            # print("data.shape:", data.shape)
-            # print("preds.shape:", preds.shape, "labels.shape:", labels.shape)
-            # input()
             loss = criterion(preds, labels)
-            # print("loss:",loss.shape)
-            # input()
 
             optimizer.zero_grad()
             loss.backward()
@@ -138,11 +132,8 @@ for epoch in range(epochs):
             count += len(data)
 
             avg = sum / count
-            # tb.add_scalar('Loss/train', avg, sample_idx)
             progress.set_postfix(loss = '{:.6f}'.format(avg))
             progress.update(len(data))
-
-        # sample_idx += 1
 
     tb.add_scalar('Loss/train', avg, epoch)
     torch.save(model.state_dict(), os.path.join(output_dir, 'epoch_{}.pth'.format(epoch)))
