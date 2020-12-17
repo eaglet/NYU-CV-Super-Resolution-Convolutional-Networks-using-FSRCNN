@@ -2,6 +2,7 @@ import argparse
 import configparser
 import cv2
 import os
+import time
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -24,9 +25,9 @@ model_file 		= config['TEST']['ModelFile']
 image_file 		= config['TEST']['ImageFile']
 output_dir 	    = config['TEST']['OutputDir']
 scale           = int(config['TEST']['Scale'])
-model           = config['TEST']['Model']
+model_type           = config['TEST']['Model']
 
-output_dir = output_dir + "/" + model + "_X" + str(scale)
+output_dir = output_dir + "/" + model_type + "_X" + str(scale)
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
@@ -46,17 +47,17 @@ cudnn.benchmark = True
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 SRCNN_related_model = ['SRCNN', 'SRCNN_WO_1', 'SRCNN_WO_2']
 
-if model == 'SRCNN':
+if model_type == 'SRCNN':
     model = SRCNN().to(device)
-elif model == 'FSRCNN':
+elif model_type == 'FSRCNN':
     model = FSRCNN(scale_factor=scale).to(device)
-elif model == 'SRCNN_WO_1':
+elif model_type == 'SRCNN_WO_1':
     model = SRCNN_WO_1().to(device)
-elif model == 'SRCNN_WO_2':
+elif model_type == 'SRCNN_WO_2':
     model = SRCNN_WO_2().to(device)
-elif model == 'FSRCNN_S1':
+elif model_type == 'FSRCNN_S1':
     model = FSRCNN_S1(scale_factor=scale).to(device)
-elif model == 'FSRCNN_S2':
+elif model_type == 'FSRCNN_S2':
     model = FSRCNN_S2(scale_factor=scale).to(device)
 
 state_dict = model.state_dict()
@@ -73,7 +74,7 @@ image = pil_image.open(image_file).convert('RGB')
 image_width = (image.width // scale) * scale
 image_height = (image.height // scale) * scale
 
-if model in SRCNN_related_model:
+if model_type in SRCNN_related_model:
     image = image.resize((image_width, image_height), resample = pil_image.BICUBIC)
     image = image.resize((image.width // scale, image.height // scale), resample = pil_image.BICUBIC)
     image = image.resize((image.width * scale, image.height * scale), resample = pil_image.BICUBIC)
@@ -88,7 +89,9 @@ if model in SRCNN_related_model:
     y = y.unsqueeze(0).unsqueeze(0)
 
     with torch.no_grad():
+        timeStamp = time.time()
         preds = model(y).clamp(0.0, 1.0)
+        print(time.time() - timeStamp)
 
     psnr = calc_psnr(y, preds)
     print('PSNR: {:.2f}'.format(psnr))
@@ -103,12 +106,15 @@ else:
     _, ycbcr = preprocess(bicubic, device)
 
     with torch.no_grad():
+        timeStamp = time.time()
         preds = model(lr).clamp(0.0, 1.0)
+        print(time.time() - timeStamp)
 
     psnr = calc_psnr(hr, preds)
     print('PSNR: {:.2f}'.format(psnr))
 
 preds = preds.mul(255.0).cpu().numpy().squeeze(0).squeeze(0)
+
 
 output = np.array([preds, ycbcr[..., 1], ycbcr[..., 2]]).transpose([1, 2, 0])
 output = np.clip(cv2.cvtColor(output, cv2.COLOR_YCrCb2BGR), 0.0, 255.0).astype(np.uint8)
