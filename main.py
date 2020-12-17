@@ -9,7 +9,7 @@ import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 from torch import nn
 
-from models import SRCNN, FSRCNN_S1, FSRCNN_S2, FSRCNN
+from models import SRCNN, FSRCNN_S1, FSRCNN_S2, FSRCNN, SRCNN_WO_1, SRCNN_WO_2
 from dataset import TrainDataset, EvalDataset
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
@@ -53,7 +53,7 @@ if model_type == 'SRCNN':
     ], lr = lr)
 
 elif model_type == 'SRCNN_WO_1':
-    model = SRCNN().to(device)
+    model = SRCNN_WO_1().to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam([
         {'params': model.conv2.parameters()},
@@ -61,7 +61,7 @@ elif model_type == 'SRCNN_WO_1':
     ], lr = lr)
 
 elif model_type == 'SRCNN_WO_2':
-    model = SRCNN().to(device)
+    model = SRCNN_WO_2().to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam([
         {'params': model.conv1.parameters()},
