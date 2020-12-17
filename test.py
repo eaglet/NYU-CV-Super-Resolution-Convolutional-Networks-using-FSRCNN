@@ -10,9 +10,12 @@ import numpy as np
 import PIL.Image as pil_image
 
 from models import SRCNN, FSRCNN, SRCNN_WO_1, SRCNN_WO_2, FSRCNN_S1, FSRCNN_S2
+from dataset import EvalDataset
+from torch.utils.data.dataloader import DataLoader
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config-file', type=str, required=True)
+parser.add_argument('--eval-file', type=str, required=False)
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
@@ -74,49 +77,68 @@ image = pil_image.open(image_file).convert('RGB')
 image_width = (image.width // scale) * scale
 image_height = (image.height // scale) * scale
 
-if model_type in SRCNN_related_model:
-    image = image.resize((image_width, image_height), resample = pil_image.BICUBIC)
-    image = image.resize((image.width // scale, image.height // scale), resample = pil_image.BICUBIC)
-    image = image.resize((image.width * scale, image.height * scale), resample = pil_image.BICUBIC)
-    image.save(image_file.replace('.', '_bicubic_x{}.'.format(scale)))
+if (args.eval_file):
+    eval_dataset = EvalDataset(args.eval_file)
+    eval_dataloader = DataLoader(dataset = eval_dataset, batch_size=1)
+    timeSum = 0
+    count = 0
+    for eval in eval_dataloader:
+        data, labels = eval
+        data = data.to(device)
+        labels = labels.to(device)
 
-    image = np.array(image).astype(np.float32)
-    ycbcr = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
+        with torch.no_grad():
+            timeStamp = time.time()
+            preds = model(data).clamp(0.0, 1.0)
+            timeSum += time.time() - timeStamp
+            count += 1
 
-    y = ycbcr[..., 0]
-    y /= 255.
-    y = torch.from_numpy(y).to(device)
-    y = y.unsqueeze(0).unsqueeze(0)
+    print(timeSum / count)
 
-    with torch.no_grad():
-        timeStamp = time.time()
-        preds = model(y).clamp(0.0, 1.0)
-        print(time.time() - timeStamp)
-
-    psnr = calc_psnr(y, preds)
-    print('PSNR: {:.2f}'.format(psnr))
 else:
-    hr = image.resize((image_width, image_height), resample=pil_image.BICUBIC)
-    lr = hr.resize((hr.width // scale, hr.height // scale), resample=pil_image.BICUBIC)
-    bicubic = lr.resize((lr.width * scale, lr.height * scale), resample=pil_image.BICUBIC)
-    bicubic.save(image_file.replace('.', '_bicubic_x{}.'.format(scale)))
+    if model_type in SRCNN_related_model:
+        image = image.resize((image_width, image_height), resample = pil_image.BICUBIC)
+        image = image.resize((image.width // scale, image.height // scale), resample = pil_image.BICUBIC)
+        image = image.resize((image.width * scale, image.height * scale), resample = pil_image.BICUBIC)
+        image.save(image_file.replace('.', '_bicubic_x{}.'.format(scale)))
 
-    lr, _ = preprocess(lr, device)
-    hr, _ = preprocess(hr, device)
-    _, ycbcr = preprocess(bicubic, device)
+        image = np.array(image).astype(np.float32)
+        ycbcr = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
 
-    with torch.no_grad():
-        timeStamp = time.time()
-        preds = model(lr).clamp(0.0, 1.0)
-        print(time.time() - timeStamp)
+        y = ycbcr[..., 0]
+        y /= 255.
+        y = torch.from_numpy(y).to(device)
+        y = y.unsqueeze(0).unsqueeze(0)
 
-    psnr = calc_psnr(hr, preds)
-    print('PSNR: {:.2f}'.format(psnr))
+        with torch.no_grad():
+            timeStamp = time.time()
+            preds = model(y).clamp(0.0, 1.0)
+            print(time.time() - timeStamp)
 
-preds = preds.mul(255.0).cpu().numpy().squeeze(0).squeeze(0)
+        psnr = calc_psnr(y, preds)
+        print('PSNR: {:.2f}'.format(psnr))
+    else:
+        hr = image.resize((image_width, image_height), resample=pil_image.BICUBIC)
+        lr = hr.resize((hr.width // scale, hr.height // scale), resample=pil_image.BICUBIC)
+        bicubic = lr.resize((lr.width * scale, lr.height * scale), resample=pil_image.BICUBIC)
+        bicubic.save(image_file.replace('.', '_bicubic_x{}.'.format(scale)))
+
+        lr, _ = preprocess(lr, device)
+        hr, _ = preprocess(hr, device)
+        _, ycbcr = preprocess(bicubic, device)
+
+        with torch.no_grad():
+            timeStamp = time.time()
+            preds = model(lr).clamp(0.0, 1.0)
+            print(time.time() - timeStamp)
+
+        psnr = calc_psnr(hr, preds)
+        print('PSNR: {:.2f}'.format(psnr))
+
+    preds = preds.mul(255.0).cpu().numpy().squeeze(0).squeeze(0)
 
 
-output = np.array([preds, ycbcr[..., 1], ycbcr[..., 2]]).transpose([1, 2, 0])
-output = np.clip(cv2.cvtColor(output, cv2.COLOR_YCrCb2BGR), 0.0, 255.0).astype(np.uint8)
-output = pil_image.fromarray(output)
-output.save(image_file.replace('.', '_srcnn_x{}.'.format(scale)))
+    output = np.array([preds, ycbcr[..., 1], ycbcr[..., 2]]).transpose([1, 2, 0])
+    output = np.clip(cv2.cvtColor(output, cv2.COLOR_YCrCb2BGR), 0.0, 255.0).astype(np.uint8)
+    output = pil_image.fromarray(output)
+    output.save(image_file.replace('.', '_srcnn_x{}.'.format(scale)))
