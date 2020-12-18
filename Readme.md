@@ -14,7 +14,7 @@ This repository re-implement the SRCNN, FSRCNN  and several related model for co
 - FSRCNN_S2: SRCNN with deconv layer as last later and 6 mid layer from FSRCNN as mid layer
 
 ### Command To execute
-####Train:
+#### Train:
 >python main.py --config-file config.ini
 
 #### Test:
