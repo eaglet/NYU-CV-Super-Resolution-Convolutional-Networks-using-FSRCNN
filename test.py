@@ -50,6 +50,7 @@ cudnn.benchmark = True
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 SRCNN_related_model = ['SRCNN', 'SRCNN_WO_1', 'SRCNN_WO_2']
 
+# Model Selection
 if model_type == 'SRCNN':
     model = SRCNN().to(device)
 elif model_type == 'FSRCNN':
@@ -77,6 +78,7 @@ image = pil_image.open(image_file).convert('RGB')
 image_width = (image.width // scale) * scale
 image_height = (image.height // scale) * scale
 
+# Eval the model prediction time
 if (args.eval_file):
     eval_dataset = EvalDataset(args.eval_file)
     eval_dataloader = DataLoader(dataset = eval_dataset, batch_size=1)
@@ -95,7 +97,9 @@ if (args.eval_file):
 
     print(timeSum / count)
 
+# Generate the output by the model
 else:
+    # For SRCNN related model
     if model_type in SRCNN_related_model:
         image = image.resize((image_width, image_height), resample = pil_image.BICUBIC)
         image = image.resize((image.width // scale, image.height // scale), resample = pil_image.BICUBIC)
@@ -117,6 +121,7 @@ else:
 
         psnr = calc_psnr(y, preds)
         print('PSNR: {:.2f}'.format(psnr))
+    # For FSRCNN related model
     else:
         hr = image.resize((image_width, image_height), resample=pil_image.BICUBIC)
         lr = hr.resize((hr.width // scale, hr.height // scale), resample=pil_image.BICUBIC)
